@@ -9,7 +9,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn import svm
 from sklearn.metrics import classification_report
 from sklearn_crfsuite.metrics import flat_classification_report
-from hmmlearn import hmm
+from hmmlearn import hmm as hmm_old
+import nltk.tag.hmm as hmm
+from nltk.probability import LidstoneProbDist as LidstoneProbDist
 import sklearn_crfsuite
 
 
@@ -54,9 +56,9 @@ def SVM(data,verbose=True):
         print(classification_report(data.y_test,y_pred,labels=data.labels_num,target_names=data.labels_name))
     return clf,y_pred
 
-#%%HMM
-def HMM(data,verbose=True):
-    hm = hmm.GaussianHMM(n_components=2, n_iter=100)
+#%% HMM
+def HMM_old(data,verbose=True):
+    hm = hmm_old.GaussianHMM(n_components=2, n_iter=100)
 
         
     '''temp = transl.idx;
@@ -73,8 +75,26 @@ def HMM(data,verbose=True):
         
     return hm,y_pred
 
+def HMM(data,tag_set,symbols,verbose=True):
+    
+    trainer = hmm.HiddenMarkovModelTrainer(tag_set, symbols)
+    tagger = trainer.train_supervised(
+        data.y_train,
+        estimator=lambda fd, bins: LidstoneProbDist(fd, 0.1, bins),
+    )
 
-#%%CRF
+    #y_pred = tagger.test(data.y_test, verbose=True)
+    #y_pred = tagger.evaluate(data.y_test)
+    y_pred = []
+    for sentence in data.x_test:
+        y_pred.append(tagger.tag(sentence))
+    
+    y_pred = [[tup[1] for tup in sentence] for sentence in y_pred]
+
+    print('HMM Results:')
+    print(flat_classification_report(data.y_test,y_pred))
+    return tagger,y_pred
+#%% CRF
 def CRF(data,verbose=True):
     crf = sklearn_crfsuite.CRF(
         algorithm='lbfgs',

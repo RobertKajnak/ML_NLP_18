@@ -5,8 +5,8 @@
 """
 from preprocessing import (readWords, appendFeatures,
                            createDataset, oneHot, data_wrap, words2dictionary, 
-                           shuffle_parallel, split_tr)
-from models import (NB, LR, SVM, HMM, CRF)
+                           shuffle_parallel, split_tr,words2tuples)
+from models import (NB, LR, SVM,HMM_old, HMM, CRF)
 
 
 #%%Handy method for testing the models
@@ -29,16 +29,24 @@ from models import (NB, LR, SVM, HMM, CRF)
 '''
 def runModels(words, models, verbose):
     # Preparing data for one-hot encodign -- converts strings into integers
-    if any(i in models for i in ['HMM','NB','LR','SVM']):
+    if any(i in models for i in ['HMM_old','NB','LR','SVM']):
         verbose|2 and print('Initial pre-processing...')
         X,Y,transl,labels_num,labels_name = createDataset(words)
         
     # Algoirthms using non-randomized, one-hot data:HMM
-    if 'HMM' in models:
-        verbose|2 and print('Preprocessing data for HMM...')
+    if 'HMM_old' in models:
+        verbose|2 and print('Preprocessing data for HMM, old version...')
         X_onehot_ord = oneHot(X,transl)
         x_train_oh,y_train_oh,x_test_oh,y_test_oh = split_tr(X_onehot_ord,Y,0.8)
         data_ordered_oh = data_wrap(x_train_oh,y_train_oh,x_test_oh,y_test_oh,transl,labels_num,labels_name)
+    
+    if 'HMM' in models:
+        verbose|2 and print('Preprocessing data for HMM...')
+        sentences_hmm, symbols, tag_set = words2tuples(words)
+        _,y_train,_,y_test = split_tr([],sentences_hmm,0.8)
+        x_test = [[tup[0] for tup in sentence] for sentence in y_test]
+        y_test = [[tup[1] for tup in sentence] for sentence in y_test]
+        data_hmm = data_wrap(None,y_train,x_test,y_test)
     
     # Algorithms using shuffled, one-hot data:NB,LR,SVM
     if any(i in models for i in ['NB','LR','SVM']):
@@ -63,10 +71,12 @@ def runModels(words, models, verbose):
         model_results.append(model_y_pred[1])
         
     for model in models:
+        if 'HMM_old' in model:
+            verbose|2 and print('Running HMM from hmmlearn package...')
+            _add_to_output(HMM_old(data_ordered_oh,verbose|1))
         if 'HMM' in model:
-            verbose|2 and print('Running HMM...')
-            _add_to_output(HMM(data_ordered_oh,verbose|1))
-            
+            verbose|2 and print('Running HMM from nltk...')
+            _add_to_output(HMM(data_hmm,tag_set,symbols,verbose|1))
         if 'NB' in model:
             verbose|2 and print('Running NB...')
             _add_to_output( NB(data_shuffled,verbose|1))
@@ -87,7 +97,9 @@ def runModels(words, models, verbose):
             
 #%% Main
 if __name__ == "__main__":
+    print('Loading document...')
     words = readWords()
+    print('Adding features...')
     words = appendFeatures(words)
     
     models=[
@@ -97,5 +109,7 @@ if __name__ == "__main__":
             'HMM',
             'CRF'
             ]
-    runModels(words, models, verbose = 3)
-    
+    models,results = runModels(words, models, verbose = 3)
+
+    #import nltk.tag.hmm as hmm
+    #hmm.demo_pos()

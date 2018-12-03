@@ -6,6 +6,8 @@
 
 import numpy as np
 from numbers import Number
+from geotext import GeoText
+import random
 
 #%%Read the entries from the file and add them to a list
 #with optional filtering
@@ -31,6 +33,7 @@ def appendFeatures(words):
     maxi = len(words)
     for i in range(maxi):
         word = words[i][0]
+        geo = GeoText(word)
         words_upgraded.append([
                 word,
                 word.lower(),
@@ -41,8 +44,9 @@ def appendFeatures(words):
                 '_digit:'+ str(word.isdigit()),
                 '_title:'+ str(word.istitle()),
                 '_x:' + str('x' in word),
-                '_y:' + str('y' in word),
+                #'_y:' + str('y' in word),
                 '_length:' + str(len(word)),
+                'loc:' + str(any(geo.cities) or any(geo.country_mentions)),
                 word[-2:],
                 word[-3:],
                 '-1:'+words[i-1][1] if i>0 else '-1:-',#POS
@@ -182,4 +186,19 @@ def words2dictionary(words,feature_names=None):
         
     return new_tokens, new_labels
 
-
+def words2tuples(words):
+    symbols = set()
+    tag_set = set()
+    
+    tuples = []
+    sentence = []
+    for word in words:
+        sentence.append((word[0],word[-1]))
+        symbols.add(word[0])
+        tag_set.add(word[-1])
+        if word[1]=='.':
+            tuples.append(sentence)
+            sentence = []
+            
+    random.shuffle(tuples)
+    return tuples,list(symbols),list(tag_set)
