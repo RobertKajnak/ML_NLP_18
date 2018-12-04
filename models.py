@@ -15,6 +15,14 @@ from nltk.probability import LidstoneProbDist as LidstoneProbDist
 import sklearn_crfsuite
 
 
+def gen_rep(data,y_pred,format_dict):
+    return classification_report(data.y_test,y_pred,
+                        labels=data.labels_num,target_names=data.labels_name,
+                        output_dict = format_dict)    
+def gen_rep_flat(data,y_pred,format_dict):
+    return flat_classification_report(
+                data.y_test, y_pred, digits=3,
+                output_dict = format_dict)
 
 #%%Naive Bayes
 def NB(data,verbose=True):
@@ -25,9 +33,9 @@ def NB(data,verbose=True):
     
     if verbose:
         print("Naive Bayes results:")
-        print(classification_report(data.y_test,y_pred,labels=data.labels_num,target_names=data.labels_name))
+        print(gen_rep(data,y_pred,False))
 
-    return gnb,y_pred
+    return gnb,y_pred,gen_rep(data,y_pred,True)
 
 #%%Logisic Regression
 def LR(data,verbose=True):
@@ -40,9 +48,9 @@ def LR(data,verbose=True):
     
     if verbose:
         print("Logistic Regression results:")
-        print(classification_report(data.y_test,y_pred,labels=data.labels_num,target_names=data.labels_name))
+        print(gen_rep(data,y_pred,False))
     #clf.score(x_test,y_test)
-    return clf,y_pred
+    return clf,y_pred,gen_rep(data,y_pred,True)
 
 #%% SVM
 
@@ -51,13 +59,15 @@ def SVM(data,verbose=True):
     clf.fit(data.x_train, data.y_train)  
     
     y_pred = clf.predict(data.x_test)
+    
     if verbose:
         print("Support Vector Machine results:")
-        print(classification_report(data.y_test,y_pred,labels=data.labels_num,target_names=data.labels_name))
-    return clf,y_pred
+        print(gen_rep(data,y_pred,False))
+    return clf,y_pred,gen_rep(data,y_pred,True)
 
 #%% HMM
 def HMM_old(data,verbose=True):
+    '''Deprecated'''
     hm = hmm_old.GaussianHMM(n_components=2, n_iter=100)
 
         
@@ -71,9 +81,9 @@ def HMM_old(data,verbose=True):
 
     if verbose:
         print("HMM results:")
-        print(classification_report(data.y_test,y_pred,labels=data.labels_num,target_names=data.labels_name))
+        print(print(gen_rep,y_pred,False))
         
-    return hm,y_pred
+    return hm,y_pred,print(gen_rep,y_pred,True)
 
 def HMM(data,tag_set,symbols,verbose=True):
     
@@ -83,8 +93,6 @@ def HMM(data,tag_set,symbols,verbose=True):
         estimator=lambda fd, bins: LidstoneProbDist(fd, 0.1, bins),
     )
 
-    #y_pred = tagger.test(data.y_test, verbose=True)
-    #y_pred = tagger.evaluate(data.y_test)
     y_pred = []
     for sentence in data.x_test:
         y_pred.append(tagger.tag(sentence))
@@ -92,8 +100,8 @@ def HMM(data,tag_set,symbols,verbose=True):
     y_pred = [[tup[1] for tup in sentence] for sentence in y_pred]
 
     print('HMM Results:')
-    print(flat_classification_report(data.y_test,y_pred))
-    return tagger,y_pred
+    print(gen_rep_flat(data,y_pred,False))
+    return tagger,y_pred,gen_rep_flat(data,y_pred,True)
 #%% CRF
 def CRF(data,verbose=True):
     crf = sklearn_crfsuite.CRF(
@@ -108,7 +116,6 @@ def CRF(data,verbose=True):
     
     if verbose:
         print("CRF results:")
-        print(flat_classification_report(
-                data.y_test, y_pred, digits=3))
-    return crf,y_pred
+        print(gen_rep_flat(data,y_pred,False))
+    return crf,y_pred,gen_rep_flat(data,y_pred,True)
     

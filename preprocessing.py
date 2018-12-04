@@ -36,9 +36,9 @@ def appendFeatures(words):
         geo = GeoText(word)
         words_upgraded.append([
                 word,
-                word.lower(),
-                words[i][1],
-                words[i][2],
+                #word.lower(),
+                words[i][1],#POS
+                words[i][2],#Chunk
                 '_lower:'+ str(word.islower()),
                 '_upper:'+ str(word.isupper()),
                 '_digit:'+ str(word.isdigit()),
@@ -50,18 +50,18 @@ def appendFeatures(words):
                 word[-2:],
                 word[-3:],
                 '-1:'+words[i-1][1] if i>0 else '-1:-',#POS
-                '-1:'+words[i-1][2] if i>0 else '-1:-',#Segment
+                '-1:'+words[i-1][2] if i>0 else '-1:-',#Chunk
                 '-1:'+words[i-1][0] if i>0 else '-1:-', #previous word
                 #'-1:'+words[i-1][3] if i>1 else '-1:-',#label
                 '+1:'+words[i+1][1] if i<maxi-1 else '+1:-',#POS
-                '+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#Segment
+                '+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#Chunk
                 '+1:'+words[i+1][0] if i<maxi-1 else '+1:-',#next word
-                '+1:'+words[i+1][3] if i<maxi-1 else '+1:-',#label
+                #'+1:'+words[i+1][3] if i<maxi-1 else '+1:-',#label
                 words[i][3] #the label, is only included in the Y, not the X
                 ])
     
     return words_upgraded
-#TODO add nr of capital letters
+
 #%%Reshape to the desired one;
 #doing this while reading it would increase speed, but this is better for modularity
 

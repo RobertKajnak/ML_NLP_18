@@ -64,19 +64,24 @@ def runModels(words, models, verbose):
         tokens_train,labels_train,tokens_test,labels_test = split_tr(tokens_dict,labels_dict,0.8)
         data_dictionary = data_wrap(tokens_train,labels_train,tokens_test,labels_test)
     
-    model_results = []
     model_objects = []
+    model_results = []
+    model_predictions = []
     def _add_to_output(model_y_pred):
         model_objects.append(model_y_pred[0])
         model_results.append(model_y_pred[1])
+        if (len(model_y_pred)>2):
+            model_predictions.append(model_y_pred[2])
         
     for model in models:
         if 'HMM_old' in model:
             verbose|2 and print('Running HMM from hmmlearn package...')
             _add_to_output(HMM_old(data_ordered_oh,verbose|1))
+            
         if 'HMM' in model:
             verbose|2 and print('Running HMM from nltk...')
             _add_to_output(HMM(data_hmm,tag_set,symbols,verbose|1))
+            
         if 'NB' in model:
             verbose|2 and print('Running NB...')
             _add_to_output( NB(data_shuffled,verbose|1))
@@ -93,7 +98,7 @@ def runModels(words, models, verbose):
             verbose|2 and print('Running CRF...')
             _add_to_output(CRF(data_dictionary,verbose|1))
             
-    return model_objects,model_results
+    return model_objects,model_results,model_predictions
             
 #%% Main
 if __name__ == "__main__":
@@ -109,7 +114,11 @@ if __name__ == "__main__":
             'HMM',
             'CRF'
             ]
-    models,results = runModels(words, models, verbose = 3)
-
-    #import nltk.tag.hmm as hmm
-    #hmm.demo_pos()
+    models,predictions,reports = runModels(words, models, verbose = 3)
+    averages = [report['weighted avg']['f1-score'] for report in reports]
+    try:
+        avg_settings
+    except:
+        avg_settings = []
+    else:
+        avg_settings.append(averages)
