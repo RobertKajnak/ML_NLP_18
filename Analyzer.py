@@ -120,5 +120,4 @@ if __name__ == "__main__":
         avg_settings
     except:
         avg_settings = []
-    else:
-        avg_settings.append(averages)
+    avg_settings.append(averages)

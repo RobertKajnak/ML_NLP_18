@@ -67,7 +67,7 @@ def SVM(data,verbose=True):
 
 #%% HMM
 def HMM_old(data,verbose=True):
-    '''Deprecated'''
+    '''Deprecated - will be removed in next version'''
     hm = hmm_old.GaussianHMM(n_components=2, n_iter=100)
 
         

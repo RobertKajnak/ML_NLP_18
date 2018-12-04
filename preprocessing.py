@@ -8,6 +8,7 @@ import numpy as np
 from numbers import Number
 from geotext import GeoText
 import random
+from functools import reduce
 
 #%%Read the entries from the file and add them to a list
 #with optional filtering
@@ -27,16 +28,44 @@ def readWords():
     return words
 
 #%% Generate new features based on words:
-    
+
+def word_shape(word):
+    #convert capital letters into X, non-capitals into x, digits into d and punctuation unchanged
+    shape = list(map(lambda c: 'x' if c.islower() else 'X' if c.isupper() else 'd' if c.isdigit() else c, word))
+    # convert list into string
+    shape = reduce(lambda s,c: s+c,shape)
+    #keep first and last two characters and the type of characters between them
+    #e.g. 'xxXXxd-:XX' -> xxxDXd-:XX'
+    #the order is a pre-determined one. If order should be kept, check the commented reduction
+    shape = shape[:2] + \
+                ('x' if 'x' in shape[2:-2] else '') + \
+                ('X' if 'X' in shape[2:-2] else '') + \
+                ('d' if 'd' in shape[2:-2] else '') + \
+                shape[2:-2].replace('x','').replace('X','').replace('d','')+\
+                shape[-2:]
+    '''        shape = shape[:2] + \
+                reduce((lambda s,c: s + \
+                        ('x' if ('x' in c and 'x' not in s) else 
+                       'X' if ('X' in c and 'X' not in s) else 
+                       'd' if ('d' in c and 'd' not in s) else
+                       c if (c not in s) else '')), shape[2:-2]) + \
+                shape[-2:]'''
+    return shape
+            
+
 def appendFeatures(words):
     words_upgraded = []
     maxi = len(words)
     for i in range(maxi):
         word = words[i][0]
         geo = GeoText(word)
+        
+        #.replace() would be slower
+        
+                
         words_upgraded.append([
                 word,
-                #word.lower(),
+                word.lower(),
                 words[i][1],#POS
                 words[i][2],#Chunk
                 '_lower:'+ str(word.islower()),
@@ -45,18 +74,17 @@ def appendFeatures(words):
                 '_title:'+ str(word.istitle()),
                 '_x:' + str('x' in word),
                 #'_y:' + str('y' in word),
-                '_length:' + str(len(word)),
+                '_long:' + str(len(word)>6),
                 'loc:' + str(any(geo.cities) or any(geo.country_mentions)),
                 word[-2:],
                 word[-3:],
+                word_shape(word),
                 '-1:'+words[i-1][1] if i>0 else '-1:-',#POS
                 '-1:'+words[i-1][2] if i>0 else '-1:-',#Chunk
                 '-1:'+words[i-1][0] if i>0 else '-1:-', #previous word
-                #'-1:'+words[i-1][3] if i>1 else '-1:-',#label
                 '+1:'+words[i+1][1] if i<maxi-1 else '+1:-',#POS
                 '+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#Chunk
                 '+1:'+words[i+1][0] if i<maxi-1 else '+1:-',#next word
-                #'+1:'+words[i+1][3] if i<maxi-1 else '+1:-',#label
                 words[i][3] #the label, is only included in the Y, not the X
                 ])
     
