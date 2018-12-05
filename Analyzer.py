@@ -3,43 +3,50 @@
 
 @author: Robert Kajnak
 """
-from preprocessing import (readWords, appendFeatures,
-                           createDataset, oneHot, data_wrap, words2dictionary, 
+from preprocessing import (read_words, append_features,
+                           create_dataset, one_hot, data_wrap, words2dictionary, 
                            shuffle_parallel, split_tr,words2tuples)
 from models import (NB, LR, SVM,HMM_old, HMM, CRF)
 
 
 #%%Handy method for testing the models
-'''
-    Runs all the models that are specified with the specified word set
-    PARAMS:
-        WORDS: list of list of words and features. 
+def run_models(words, models, verbose):
+    '''
+    Runs all the models that are specified with the specified word set.
+    It runs all preporocessing steps necessary for the models specified
+    Note: If a model is specified twice, it will be run twice, but the preprocessing
+    on the input data will not(useful to test for model parameter initialization)
+    
+    Returns a list containing the the objects of the models used, 
+        the outputs they predicted and 
+        the sklearn classification reports (dictionary format), 
+        in the order where they were provided
+        
+    Keyword arguments:
+        words: list of list of words and features. 
             Format: n*m. n=nr of words, m=nr features + expected output (single)
-        MODELS: a string containing the model names. Order is not important.
+        models: a string containing the model names. Order is not important.
             Possible models are: NB, LR, SVM, HMM, CRF. Coming soon: CNN
             If a model is specified twice, it will be run twice. The input is
             randomized only once, where applicable
-        VERBOSE: 0: print nothing
+        veboose: 0: print nothing
                 1: print results
                 2: print status messages:
                 3: print both
-    RETURN: 
-        returns a list containing the output vectors and a list of models 
-        of the sepcified inputs, in the order where they were provided
-'''
-def runModels(words, models, verbose):
+    '''
     # Preparing data for one-hot encodign -- converts strings into integers
     if any(i in models for i in ['HMM_old','NB','LR','SVM']):
         verbose|2 and print('Initial pre-processing...')
-        X,Y,transl,labels_num,labels_name = createDataset(words)
+        X,Y,transl,labels_num,labels_name = create_dataset(words)
         
     # Algoirthms using non-randomized, one-hot data:HMM
     if 'HMM_old' in models:
         verbose|2 and print('Preprocessing data for HMM, old version...')
-        X_onehot_ord = oneHot(X,transl)
+        X_onehot_ord = one_hot(X,transl)
         x_train_oh,y_train_oh,x_test_oh,y_test_oh = split_tr(X_onehot_ord,Y,0.8)
         data_ordered_oh = data_wrap(x_train_oh,y_train_oh,x_test_oh,y_test_oh,transl,labels_num,labels_name)
     
+    #Algorithm uses sentences (list of list of tuples): HMM
     if 'HMM' in models:
         verbose|2 and print('Preprocessing data for HMM...')
         sentences_hmm, symbols, tag_set = words2tuples(words)
@@ -52,11 +59,11 @@ def runModels(words, models, verbose):
     if any(i in models for i in ['NB','LR','SVM']):
         verbose|2 and print('Preprocessing data for NB, LR and/or SVM...')
         shuffle_parallel(X,Y)
-        X_onehot_sh = oneHot(X,transl)
+        X_onehot_sh = one_hot(X,transl)
         x_train_oh_sh,y_train_oh_sh,x_test_oh_sh,y_test_oh_sh = split_tr(X_onehot_sh,Y,0.8)
         data_shuffled = data_wrap(x_train_oh_sh,y_train_oh_sh,x_test_oh_sh,y_test_oh_sh,transl,labels_num,labels_name)
 
-    #Ordered, using sentences: CRF
+    #Ordered, using sentences (list of list of dict): CRF
     if 'CRF' in models:
         verbose|2 and print('Preprocessing data for CRF...')
         tokens_dict,labels_dict = words2dictionary(words)#,['token','POS','segment'])
@@ -67,12 +74,17 @@ def runModels(words, models, verbose):
     model_objects = []
     model_results = []
     model_predictions = []
+    #removes clutter when calling the functions separately
+    #Using a list of function handlers could also be used, but I find that to be 
+    #less intuitive
     def _add_to_output(model_y_pred):
         model_objects.append(model_y_pred[0])
         model_results.append(model_y_pred[1])
         if (len(model_y_pred)>2):
             model_predictions.append(model_y_pred[2])
         
+    #Run each of the models from the paramters, while KEEPING THE ORDER they were called in
+    #and append it to the return lists
     for model in models:
         if 'HMM_old' in model:
             verbose|2 and print('Running HMM from hmmlearn package...')
@@ -80,7 +92,7 @@ def runModels(words, models, verbose):
             
         if 'HMM' in model:
             verbose|2 and print('Running HMM from nltk...')
-            _add_to_output(HMM(data_hmm,tag_set,symbols,verbose|1))
+            _add_to_output(HMM(data_hmm,symbols,tag_set,verbose|1))
             
         if 'NB' in model:
             verbose|2 and print('Running NB...')
@@ -103,10 +115,12 @@ def runModels(words, models, verbose):
 #%% Main
 if __name__ == "__main__":
     print('Loading document...')
-    words = readWords()
+    words = read_words()
     print('Adding features...')
-    words = appendFeatures(words)
+    words = append_features(words)
     
+    #comment any of these to not run it. The necessary pre-processing steps for
+    #that model will also be skipped
     models=[
             'NB',
             'LR',
@@ -114,8 +128,11 @@ if __name__ == "__main__":
             'HMM',
             'CRF'
             ]
-    models,predictions,reports = runModels(words, models, verbose = 3)
+    models,predictions,reports = run_models(words, models, verbose = 3)
     averages = [report['weighted avg']['f1-score'] for report in reports]
+    
+    #History-like feature. Appends the f1-weighted-average to the variable
+    #if the variable doesn't exist, an empty list is instantiated
     try:
         avg_settings
     except:

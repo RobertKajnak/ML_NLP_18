@@ -18,7 +18,7 @@ import sklearn_crfsuite
 def gen_rep(data,y_pred,format_dict):
     return classification_report(data.y_test,y_pred,
                         labels=data.labels_num,target_names=data.labels_name,
-                        output_dict = format_dict)    
+                        output_dict = format_dict,digits = 3)    
 def gen_rep_flat(data,y_pred,format_dict):
     return flat_classification_report(
                 data.y_test, y_pred, digits=3,
@@ -26,6 +26,11 @@ def gen_rep_flat(data,y_pred,format_dict):
 
 #%%Naive Bayes
 def NB(data,verbose=True):
+    '''
+    NB(data,verbose)->model,prediction,report(dict). 
+    verbose=>prints report
+    for data structure see preprocessing.py
+    '''
     gnb = MultinomialNB(alpha=0.001,fit_prior=False)
     y_pred = gnb.fit(data.x_train, data.y_train).predict(data.x_test)
     
@@ -39,6 +44,11 @@ def NB(data,verbose=True):
 
 #%%Logisic Regression
 def LR(data,verbose=True):
+    '''
+    NB(data,verbose)->model,prediction,report(dict). 
+    verbose=>prints report
+    for data structure see preprocessing.py
+    '''
     # using the parameters recommended on the sklearn documentaiton increased
     #the performance by 2%, but increases run time by 100 times:
     #random_state=0, solver='lbfgs',multi_class='ovr'
@@ -55,6 +65,11 @@ def LR(data,verbose=True):
 #%% SVM
 
 def SVM(data,verbose=True):
+    '''
+    NB(data,verbose)->model,prediction,report(dict). 
+    verbose=>prints report
+    for data structure see preprocessing.py
+    '''
     clf = svm.LinearSVC()
     clf.fit(data.x_train, data.y_train)  
     
@@ -85,8 +100,15 @@ def HMM_old(data,verbose=True):
         
     return hm,y_pred,print(gen_rep,y_pred,True)
 
-def HMM(data,tag_set,symbols,verbose=True):
-    
+def HMM(data,symbols,tag_set,verbose=True):
+    '''
+    NB(data,symbols,tag_set,verbose)->model,prediction,report(dict). 
+    Keyword arguments:
+        data: see preprocessing.py
+        symbols: list of the input class labels
+        tag_set: list of the output class labels
+    for data structure see preprocessing.py
+    '''
     trainer = hmm.HiddenMarkovModelTrainer(tag_set, symbols)
     tagger = trainer.train_supervised(
         data.y_train,
@@ -104,6 +126,11 @@ def HMM(data,tag_set,symbols,verbose=True):
     return tagger,y_pred,gen_rep_flat(data,y_pred,True)
 #%% CRF
 def CRF(data,verbose=True):
+    '''
+    NB(data,verbose)->model,prediction,report(dict). 
+    verbose=>prints report
+    for data structure see preprocessing.py
+    '''
     crf = sklearn_crfsuite.CRF(
         algorithm='lbfgs',
         c1=0.1,

@@ -12,15 +12,14 @@ from functools import reduce
 
 #%%Read the entries from the file and add them to a list
 #with optional filtering
-def readWords():
-    f = open('reuters-train.en','r')
+def read_words(filename = 'reuters-train.en'):
+    '''returns list of [words per lines]. Blank lines removed'''
+    f = open(filename,'r')
     
     words = []
     for line in f:
         l = line.replace('\n','').split(' ')
-        if len(l)==1: #\
-           #or l[0] in '!@#$%^&*()12346789[]{}\\|\'\",./<>?' \
-            #:
+        if len(l)==1:
             continue
         words.append(l)
     
@@ -30,7 +29,24 @@ def readWords():
 #%% Generate new features based on words:
 
 def word_shape(word):
+    '''
+    Generates a shape string based on the input string.
+    Rules: 
+        1. capital letters -> X
+           smallcase -> x
+           digits -> d
+           punctuation/other -> unchanged
+        2. first and last 2 letters are kept
+           for each intermediary character, a sinlge character of the class is kept
+    Example:
+        a2cdEFG:HI-j -> xdxxXXX:XX-x -> xdxX:-x
+        
+    Credit for the idea: 
+        Information Extraction and Named Entity Recognition,  Michael Collings
+        short explanation: https://youtu.be/wxyZTSc2tM0?t=708
+    '''
     #convert capital letters into X, non-capitals into x, digits into d and punctuation unchanged
+    #.replace() would be slower 
     shape = list(map(lambda c: 'x' if c.islower() else 'X' if c.isupper() else 'd' if c.isdigit() else c, word))
     # convert list into string
     shape = reduce(lambda s,c: s+c,shape)
@@ -53,39 +69,36 @@ def word_shape(word):
     return shape
             
 
-def appendFeatures(words):
+def append_features(words):
     words_upgraded = []
     maxi = len(words)
     for i in range(maxi):
         word = words[i][0]
-        geo = GeoText(word)
+        geo = GeoText(word)        
         
-        #.replace() would be slower
-        
-                
         words_upgraded.append([
-                word,
-                word.lower(),
+                word, #word itself
+                word.lower(), #word converted to lowercase
                 words[i][1],#POS
                 words[i][2],#Chunk
-                '_lower:'+ str(word.islower()),
-                '_upper:'+ str(word.isupper()),
-                '_digit:'+ str(word.isdigit()),
-                '_title:'+ str(word.istitle()),
-                '_x:' + str('x' in word),
-                #'_y:' + str('y' in word),
-                '_long:' + str(len(word)>6),
-                'loc:' + str(any(geo.cities) or any(geo.country_mentions)),
-                word[-2:],
-                word[-3:],
-                word_shape(word),
-                '-1:'+words[i-1][1] if i>0 else '-1:-',#POS
-                '-1:'+words[i-1][2] if i>0 else '-1:-',#Chunk
+                '_lower:'+ str(word.islower()), #all letters lowercase
+                '_upper:'+ str(word.isupper()), #all letters uppercase
+                '_digit:'+ str(word.isdigit()), #contains only digits
+                '_title:'+ str(word.istitle()), #first letter capitalized
+                '_x:' + str('x' in word or 'X' in word), #contains 'x' or 'X'
+                #'_y:' + str('y' in word), 
+                '_long:' + str(len(word)>6), #longer than 6 characters
+                'loc:' + str(any(geo.cities) or any(geo.country_mentions)), #city or country
+                word[-2:], #last 2 characters
+                word[-3:], #last 3 characters
+                word_shape(word), #see word_shape(word) function
+                '-1:'+words[i-1][1] if i>0 else '-1:-',#previous POS
+                '-1:'+words[i-1][2] if i>0 else '-1:-',#previous  Chunk
                 '-1:'+words[i-1][0] if i>0 else '-1:-', #previous word
-                '+1:'+words[i+1][1] if i<maxi-1 else '+1:-',#POS
-                '+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#Chunk
+                '+1:'+words[i+1][1] if i<maxi-1 else '+1:-',#previous POS
+                '+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#previous Chunk
                 '+1:'+words[i+1][0] if i<maxi-1 else '+1:-',#next word
-                words[i][3] #the label, is only included in the Y, not the X
+                words[i][3] #the label (will be split from X into Y in createDataset(words))
                 ])
     
     return words_upgraded
@@ -94,10 +107,23 @@ def appendFeatures(words):
 #doing this while reading it would increase speed, but this is better for modularity
 
 class translator:
+    '''
+    converts strings into a unique number
+    Example: If called (in this order) on each of the of the elements in the array:
+        ['a',b','asdac','b','a'] -> [0, 1, 2, 1, 0]
+        [0, 'a' , 2] -> ['a', 0, 'asdac']
+        Input can be any non-numeric type. Numbers will be looked up and converted
+        back to the original object
+    '''
     def __init__(self):
         self.words={}
         self.idx = 0
     def translate(self,word):
+        '''
+        Works both ways. 
+        Number will be converted into the stored object, 
+        new objects will be assigned new numbers
+        '''
         if isinstance(word,Number):
             for k,v in self.words.items():
                 if v==word:
@@ -113,17 +139,17 @@ class translator:
 
 #ensure all words are similarly split
                 
-def createDataset(words):
-    
-    #the 0 class seems to outweigh all other classes by more than 10 times, so
-    #it will be reduced here
+def create_dataset(words):
+    '''
+    Converts the strings from the dataset into numbers. 
+    (can be used as a pre-cursor) to vectorization (in nltk sense).
+    Returns the translator used, the list of numbers and the list of labels 
+    for the output classes
+    '''
+
     new_words=[]
     for word in words:
-        if word[-1] == 'O':
-            #if random() < 0.06:
-            new_words.append(word)
-        else:
-            new_words.append(word)
+        new_words.append(word)
     words= new_words
     
     T = translator()
@@ -131,8 +157,6 @@ def createDataset(words):
     nw = len(words)
     nf = len(words[0])-1
     
-    #X = np.empty([nw,nf], dtype ='<U30') 
-    #Y = np.empty([nw], dtype ='<U30')
     X = np.zeros([nw,nf])
     Y = np.zeros([nw])
     
@@ -152,8 +176,13 @@ def createDataset(words):
 
 #The one-hot encoding greatly increases performance
 #Potential bug: if there is e.g. a word "B-LOC" in the corpus, it will be encoded
+#This should however not be the case, since the input should not contain output classes
 #the same way as the actual NE label
-def oneHot(X, transl):
+def one_hot(X, transl):
+    '''
+    Converts the numbers from the dataset into one-hot encoding. 
+    To obtain X and transl, run createDataset(words)
+    '''
     from scipy.sparse import lil_matrix
     X_new = lil_matrix((len(X),transl.idx),dtype=np.int8)
     #X_new  = np.zeros([len(X),transl.idx])
@@ -167,12 +196,14 @@ def oneHot(X, transl):
 
 
 def shuffle_parallel(a, b):
+    '''Shuffles while keeping the indices together. a[i]->a[j]=>b[i]->b[j]. a and b mutated'''
     rng_state = np.random.get_state()
     np.random.shuffle(a)
     np.random.set_state(rng_state)
     np.random.shuffle(b)
     
 class data_wrap:
+    '''Shorthand for writing x_train, y_train etc. every time'''
     def __init__(self,x_train,y_train,x_test,y_test,transl=None,labels_num=None,labels_name=None):
         self.x_train=x_train
         self.y_train=y_train
@@ -185,11 +216,21 @@ class data_wrap:
 
 #Split training and test sets
 def split_tr(X,Y,ratio):
+    '''returns: x_train,y_train,x_test,y_test'''
     lim = (np.int)(len(Y)*ratio)
     return X[:lim],Y[:lim],X[lim:],Y[lim:]
 
 #%%Construct dictionary for CRF
 def words2dictionary(words,feature_names=None):
+    '''
+    Trasnforms word list into senctences (list of list -> list of list of dict)
+    Used for CRF model.
+    
+    Keyword arguments:
+        words: list of [x1, x2,...,y]
+        feature_names: optional. The dict returned will use this list as keys.
+            Having different nr of feature_names and x colums is not supported
+    '''
     new_tokens = []
     new_labels = []
     if feature_names==None:
@@ -214,15 +255,24 @@ def words2dictionary(words,feature_names=None):
         
     return new_tokens, new_labels
 
-def words2tuples(words):
+def words2tuples(words,feature_used = 0):
+    '''
+    Trasnforms word list into senctences (list of list -> list of list of tuple)
+    Only one feature is used.
+    Used for HMM
+    
+    Keyword arguments:
+        words: list of [x1, x2,...,y]
+        features_used: index represents the column from the input
+    '''
     symbols = set()
     tag_set = set()
     
     tuples = []
     sentence = []
     for word in words:
-        sentence.append((word[0],word[-1]))
-        symbols.add(word[0])
+        sentence.append((word[feature_used],word[-1]))
+        symbols.add(word[feature_used])
         tag_set.add(word[-1])
         if word[1]=='.':
             tuples.append(sentence)
