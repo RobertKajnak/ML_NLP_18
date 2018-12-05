@@ -78,9 +78,9 @@ def append_features(words):
         
         words_upgraded.append([
                 word, #word itself
-                word.lower(), #word converted to lowercase
                 words[i][1],#POS
-                words[i][2],#Chunk
+                word.lower(), #word converted to lowercase
+                #words[i][2],#Chunk
                 '_lower:'+ str(word.islower()), #all letters lowercase
                 '_upper:'+ str(word.isupper()), #all letters uppercase
                 '_digit:'+ str(word.isdigit()), #contains only digits
@@ -93,10 +93,10 @@ def append_features(words):
                 word[-3:], #last 3 characters
                 word_shape(word), #see word_shape(word) function
                 '-1:'+words[i-1][1] if i>0 else '-1:-',#previous POS
-                '-1:'+words[i-1][2] if i>0 else '-1:-',#previous  Chunk
+                #'-1:'+words[i-1][2] if i>0 else '-1:-',#previous  Chunk
                 '-1:'+words[i-1][0] if i>0 else '-1:-', #previous word
                 '+1:'+words[i+1][1] if i<maxi-1 else '+1:-',#previous POS
-                '+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#previous Chunk
+                #'+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#previous Chunk
                 '+1:'+words[i+1][0] if i<maxi-1 else '+1:-',#next word
                  #the label (will be split from X into Y in createDataset(words))
                  #Also strips the I or B tag
@@ -223,7 +223,13 @@ def split_tr(X,Y,ratio):
     return X[:lim],Y[:lim],X[lim:],Y[lim:]
 
 #%%Construct dictionary for CRF
-def words2dictionary(words,feature_names=None):
+def sentence_end(word,POS_index):
+    if POS_index==None:
+        return word[0] in '.?!'
+    else:
+        return word[POS_index] == '.'
+    
+def words2dictionary(words,feature_names=None,POS_index = None):
     '''
     Trasnforms word list into senctences (list of list -> list of list of dict)
     Used for CRF model.
@@ -232,6 +238,9 @@ def words2dictionary(words,feature_names=None):
         words: list of [x1, x2,...,y]
         feature_names: optional. The dict returned will use this list as keys.
             Having different nr of feature_names and x colums is not supported
+        POS_index: if specified, this will be used to identify sentence endings
+            The POS character associated to the sentence end should be '.'.
+            If left None, '.?!' set will be used to identify sentence ending
     '''
     new_tokens = []
     new_labels = []
@@ -248,7 +257,7 @@ def words2dictionary(words,feature_names=None):
             new_word[feature] = word[idx]
         token_sentence.append(new_word)
         label_sentence.append(word[idx+1])
-        if word[1]=='.':
+        if sentence_end(word,POS_index):
             new_tokens.append(token_sentence)
             token_sentence = []
             new_labels.append(label_sentence)
@@ -257,7 +266,7 @@ def words2dictionary(words,feature_names=None):
         
     return new_tokens, new_labels
 
-def words2tuples(words,feature_used = 0):
+def words2tuples(words,feature_used = 0,POS_index = None):
     '''
     Trasnforms word list into senctences (list of list -> list of list of tuple)
     Only one feature is used.
@@ -266,7 +275,12 @@ def words2tuples(words,feature_used = 0):
     Keyword arguments:
         words: list of [x1, x2,...,y]
         features_used: index represents the column from the input
+        POS_index: if specified, this will be used to identify sentence endings
+            The POS character associated to the sentence end should be '.'.
+            If left None, '.?!' set will be used to identify sentence ending
     '''
+
+    
     symbols = set()
     tag_set = set()
     
@@ -276,7 +290,7 @@ def words2tuples(words,feature_used = 0):
         sentence.append((word[feature_used],word[-1]))
         symbols.add(word[feature_used])
         tag_set.add(word[-1])
-        if word[1]=='.':
+        if sentence_end(word,POS_index):
             tuples.append(sentence)
             sentence = []
             
