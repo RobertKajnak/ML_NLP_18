@@ -138,3 +138,9 @@ if __name__ == "__main__":
     except:
         avg_settings = []
     avg_settings.append(averages)
+    if (len(avg_settings)>1) and len(avg_settings[-1])==len(avg_settings[-2]):
+        print('Change since last run (this-last):')
+        #this is not a keyword here. <giggles to himself>
+        for this, last in zip(avg_settings[-1],avg_settings[-2]):
+            print('{0:.3f}'.format(this-last))
+            

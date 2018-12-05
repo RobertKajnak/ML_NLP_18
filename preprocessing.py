@@ -9,6 +9,7 @@ from numbers import Number
 from geotext import GeoText
 import random
 from functools import reduce
+from nltk import pos_tag
 
 #%%Read the entries from the file and add them to a list
 #with optional filtering
@@ -68,40 +69,79 @@ def word_shape(word):
                 shape[-2:]'''
     return shape
             
+class feature_list:
+    word_itself = True
+    POS = True
+    word_lowercase = True
+    is_lowercase = True
+    is_uppercase = True
+    is_digit = True
+    is_capitalized = True #the first letter
+    contains_x = True
+    is_long = True  #longer than 6 chars
+    is_location = True
+    last_2_chars = True
+    last_3_chars = True
+    word_shape = True
+    prev_word = True
+    prev_POS = True
+    next_word = True
+    next_POS = True
 
-def append_features(words):
+def append_features(words, features_to_add = None, is_training_set = True):
+    '''
+    Appends features to the words.
+    Keyword arguments:
+        words: format list of [word POS class/label]. POS optional.
+            Raw corpus can also be provided.
+        features_to_add:
+            None => all possible features added
+            otherwise expects feature_list object
+    
+    '''
+
+    if features_to_add == None:
+        feat = feature_list()
+    else:
+        feat = features_to_add
+    #if add_POS:
+    #    poss = pos_tag([word[0] for word in words])
+        
     words_upgraded = []
     maxi = len(words)
     for i in range(maxi):
         word = words[i][0]
         geo = GeoText(word)        
         
-        words_upgraded.append([
-                word, #word itself
-                words[i][1],#POS
-                word.lower(), #word converted to lowercase
-                #words[i][2],#Chunk
-                '_lower:'+ str(word.islower()), #all letters lowercase
-                '_upper:'+ str(word.isupper()), #all letters uppercase
-                '_digit:'+ str(word.isdigit()), #contains only digits
-                '_title:'+ str(word.istitle()), #first letter capitalized
-                '_x:' + str('x' in word or 'X' in word), #contains 'x' or 'X'
-                #'_y:' + str('y' in word), 
-                '_long:' + str(len(word)>6), #longer than 6 characters
-                'loc:' + str(any(geo.cities) or any(geo.country_mentions)), #city or country
-                word[-2:], #last 2 characters
-                word[-3:], #last 3 characters
-                word_shape(word), #see word_shape(word) function
-                '-1:'+words[i-1][1] if i>0 else '-1:-',#previous POS
-                #'-1:'+words[i-1][2] if i>0 else '-1:-',#previous  Chunk
-                '-1:'+words[i-1][0] if i>0 else '-1:-', #previous word
-                '+1:'+words[i+1][1] if i<maxi-1 else '+1:-',#previous POS
-                #'+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#previous Chunk
-                '+1:'+words[i+1][0] if i<maxi-1 else '+1:-',#next word
-                 #the label (will be split from X into Y in createDataset(words))
-                 #Also strips the I or B tag
-                words[i][3] if words[i][3]=='O' else words[i][3][2:]
-                ])
+        #word+features   
+        wpf = []
+        if feat.word_itself:    wpf.append(word) #word itself
+        if feat.POS:            wpf.append(words[i][1]) #POS
+        if feat.word_lowercase: wpf.append(word.lower()) #word converted to lowercase
+        if feat.is_lowercase:   wpf.append('_lower:'+ str(word.islower())) #all letters lowercase
+        if feat.is_uppercase:   wpf.append('_upper:'+ str(word.isupper())) #all letters uppercase
+        if feat.is_digit:       wpf.append('_digit:'+ str(word.isdigit())) #contains only digits
+        if feat.is_capitalized: wpf.append('_title:'+ str(word.istitle())) #first letter capitalized
+        if feat.contains_x:     wpf.append('_x:' + str('x' in word or 'X' in word)) #contains 'x' or 'X'
+        if feat.is_long:        wpf.append('_long:' + str(len(word)>6)) #longer than 6 characters
+        if feat.is_location:    wpf.append('loc:' + str(any(geo.cities) or any(geo.country_mentions))) #city or country
+        if feat.last_2_chars:   wpf.append(word[-2:]) #last 2 characters
+        if feat.last_3_chars:   wpf.append(word[-3:]) #last 3 characters
+        if feat.word_shape:     wpf.append(word_shape(word)) #see word_shape(word) function
+        
+        if feat.prev_word:      wpf.append('-1:'+words[i-1][0]) if i>0 else wpf.append('-1:-'), #previous word
+        if feat.prev_POS:       wpf.append('-1:'+words[i-1][1]) if i>0 else wpf.append('-1:-'),#previous POS
+        if feat.next_word:      wpf.append('+1:'+words[i+1][0]) if i<maxi-1 else wpf.append('+1:-'),#next word
+        if feat.next_POS:       wpf.append('+1:'+words[i+1][1]) if i<maxi-1 else wpf.append('+1:-'),#next POS
+        
+        #the label (will be split from X into Y in createDataset(words))
+        #Also strips the I or B tag
+        if is_training_set:
+           if words[i][3]=='O': 
+               wpf.append(words[i][3]) 
+           else :
+               wpf.append(words[i][3][2:])
+        words_upgraded.append(wpf)
     
     return words_upgraded
 
@@ -141,7 +181,7 @@ class translator:
 
 #ensure all words are similarly split
                 
-def create_dataset(words):
+def create_dataset(words, input_only = False):
     '''
     Converts the strings from the dataset into numbers. 
     (can be used as a pre-cursor) to vectorization (in nltk sense).
@@ -149,11 +189,6 @@ def create_dataset(words):
     for the output classes
     '''
 
-    new_words=[]
-    for word in words:
-        new_words.append(word)
-    words= new_words
-    
     T = translator()
     
     nw = len(words)
