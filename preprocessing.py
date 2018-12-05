@@ -88,24 +88,27 @@ class feature_list:
     next_word = True
     next_POS = True
 
-def append_features(words, features_to_add = None, is_training_set = True):
+def append_features(words, features_to_add = None, is_training_set = True, 
+                    is_POS_present_in_words=True):
     '''
     Appends features to the words.
     Keyword arguments:
-        words: format list of [word POS class/label]. POS optional.
-            Raw corpus can also be provided.
+        words: format list of [word POS class/label]. 
+            To omit POS tag set is_POS_present_in_words to False
+            to omit class/label set is_training_set to False
         features_to_add:
             None => all possible features added
             otherwise expects feature_list object
-    
+        is_training_set: set to False if no output class/labels are provided
+        is_training_set: set to False if no POS labels are in the text
     '''
 
     if features_to_add == None:
         feat = feature_list()
     else:
         feat = features_to_add
-    #if add_POS:
-    #    poss = pos_tag([word[0] for word in words])
+    if feat.POS and not is_POS_present_in_words:
+        poss = pos_tag([word[0] for word in words])
         
     words_upgraded = []
     maxi = len(words)
@@ -116,7 +119,11 @@ def append_features(words, features_to_add = None, is_training_set = True):
         #word+features   
         wpf = []
         if feat.word_itself:    wpf.append(word) #word itself
-        if feat.POS:            wpf.append(words[i][1]) #POS
+        if feat.POS:            
+                                if is_POS_present_in_words: #POS
+                                    wpf.append(words[i][1])
+                                else:
+                                    wpf.append(poss[i][1])
         if feat.word_lowercase: wpf.append(word.lower()) #word converted to lowercase
         if feat.is_lowercase:   wpf.append('_lower:'+ str(word.islower())) #all letters lowercase
         if feat.is_uppercase:   wpf.append('_upper:'+ str(word.isupper())) #all letters uppercase

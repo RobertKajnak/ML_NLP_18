@@ -117,7 +117,7 @@ if __name__ == "__main__":
     print('Loading document...')
     words = read_words()
     print('Adding features...')
-    words = append_features(words)
+    words = append_features(words, is_POS_present_in_words=True, is_training_set=False)
     
     #comment any of these to not run it. The necessary pre-processing steps for
     #that model will also be skipped
