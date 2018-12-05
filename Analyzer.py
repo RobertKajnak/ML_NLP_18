@@ -122,11 +122,11 @@ if __name__ == "__main__":
     #comment any of these to not run it. The necessary pre-processing steps for
     #that model will also be skipped
     models=[
-            'NB',
-            'LR',
-            'SVM', 
+            #'NB',
+            #'LR',
+            #'SVM', 
             'HMM',
-            'CRF'
+            #'CRF'
             ]
     models,predictions,reports = run_models(words, models, verbose = 3)
     averages = [report['weighted avg']['f1-score'] for report in reports]

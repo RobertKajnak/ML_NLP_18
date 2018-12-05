@@ -98,7 +98,9 @@ def append_features(words):
                 '+1:'+words[i+1][1] if i<maxi-1 else '+1:-',#previous POS
                 '+1:'+words[i+1][2] if i<maxi-1 else '+1:-',#previous Chunk
                 '+1:'+words[i+1][0] if i<maxi-1 else '+1:-',#next word
-                words[i][3] #the label (will be split from X into Y in createDataset(words))
+                 #the label (will be split from X into Y in createDataset(words))
+                 #Also strips the I or B tag
+                words[i][3] if words[i][3]=='O' else words[i][3][2:]
                 ])
     
     return words_upgraded

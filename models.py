@@ -119,6 +119,8 @@ def HMM(data,symbols,tag_set,verbose=True):
     for sentence in data.x_test:
         y_pred.append(tagger.tag(sentence))
     
+    #unlike the test or evaluate function from the same suit, this requires 
+    #a list of symbols, not tuples of symbols and tags
     y_pred = [[tup[1] for tup in sentence] for sentence in y_pred]
 
     print('HMM Results:')
