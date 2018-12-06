@@ -10,7 +10,7 @@ from models import (NB, LR, SVM,HMM_old, HMM, CRF)
 
 
 #%%Handy method for testing the models
-def run_models(words, models, verbose):
+def run_models(words, models, verbose, train=True, test=True):
     '''
     Runs all the models that are specified with the specified word set.
     It runs all preporocessing steps necessary for the models specified
@@ -115,9 +115,9 @@ def run_models(words, models, verbose):
 #%% Main
 if __name__ == "__main__":
     print('Loading document...')
-    words = read_words()
+    words = read_words('reuters-train.en')
     print('Adding features...')
-    words = append_features(words, is_POS_present_in_words=True, is_training_set=False)
+    words = append_features(words, is_POS_present_in_words=True, is_training_set=True)
     
     #comment any of these to not run it. The necessary pre-processing steps for
     #that model will also be skipped
@@ -128,7 +128,8 @@ if __name__ == "__main__":
             'HMM',
             'CRF'
             ]
-    models,predictions,reports = run_models(words, models, verbose = 3)
+    models,predictions,reports = run_models(words, models, verbose = 3, 
+                                            train=True, test=True)
     averages = [report['weighted avg']['f1-score'] for report in reports]
     
     #History-like feature. Appends the f1-weighted-average to the variable

@@ -10,19 +10,31 @@ from geotext import GeoText
 import random
 from functools import reduce
 from nltk import pos_tag
+from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer
 
 #%%Read the entries from the file and add them to a list
 #with optional filtering
-def read_words(filename = 'reuters-train.en'):
-    '''returns list of [words per lines]. Blank lines removed'''
+def read_words(filename, raw=False):
+    '''
+    returns list of [words per lines]. Blank lines removed
+    Keyword arguments:
+        raw: False => expected format:each line consits of: word features label
+            features and labels optional
+            True => a raw Text file
+    '''
     f = open(filename,'r')
     
-    words = []
-    for line in f:
-        l = line.replace('\n','').split(' ')
-        if len(l)==1:
-            continue
-        words.append(l)
+    
+    if raw:
+        words=word_tokenize('')
+    else:    
+        words = []
+        for line in f:
+            l = line.replace('\n','').split(' ')
+            if len(l)==1:
+                continue
+            words.append(l)
     
     f.close()
     return words
@@ -72,7 +84,7 @@ def word_shape(word):
 class feature_list:
     word_itself = True
     POS = True
-    word_lowercase = True
+    stem = True
     is_lowercase = True
     is_uppercase = True
     is_digit = True
@@ -110,6 +122,7 @@ def append_features(words, features_to_add = None, is_training_set = True,
     if feat.POS and not is_POS_present_in_words:
         poss = pos_tag([word[0] for word in words])
         
+    stemmer = PorterStemmer()
     words_upgraded = []
     maxi = len(words)
     for i in range(maxi):
@@ -124,7 +137,7 @@ def append_features(words, features_to_add = None, is_training_set = True,
                                     wpf.append(words[i][1])
                                 else:
                                     wpf.append(poss[i][1])
-        if feat.word_lowercase: wpf.append(word.lower()) #word converted to lowercase
+        if feat.stem:           wpf.append(stemmer.stem(word))
         if feat.is_lowercase:   wpf.append('_lower:'+ str(word.islower())) #all letters lowercase
         if feat.is_uppercase:   wpf.append('_upper:'+ str(word.isupper())) #all letters uppercase
         if feat.is_digit:       wpf.append('_digit:'+ str(word.isdigit())) #contains only digits
@@ -200,21 +213,25 @@ def create_dataset(words, input_only = False):
     
     nw = len(words)
     nf = len(words[0])-1
-    
+    if input_only:
+        nf += 1
+        Y=None
+        labels_num = None
+        labels_name = None
+        
     X = np.zeros([nw,nf])
-    Y = np.zeros([nw])
+    if not input_only:
+        Y = np.zeros([nw])
+        for i,word in enumerate(words):
+            Y[i] = T.translate(word[-1])
+        labels_num = sorted(list(set(Y)))
+        labels_name =[]
+        for label in labels_num:
+            labels_name.append(T.translate(label))
     
-    for i,word in enumerate(words):
-        Y[i] = T.translate(word[-1])
     for j in range(nf):
         for i,word in enumerate(words):    
             X[i][j] = T.translate(words[i][j])
-        
-    
-    labels_num = sorted(list(set(Y)))
-    labels_name =[]
-    for label in labels_num:
-        labels_name.append(T.translate(label))
 
     return X,Y,T,labels_num,labels_name
 
@@ -261,8 +278,12 @@ class data_wrap:
 #Split training and test sets
 def split_tr(X,Y,ratio):
     '''returns: x_train,y_train,x_test,y_test'''
-    lim = (np.int)(len(Y)*ratio)
-    return X[:lim],Y[:lim],X[lim:],Y[lim:]
+    try:
+        lim = max((np.int)(X.shape[0]*ratio),(np.int)(Y.shape[0]*ratio))
+    except:
+        lim = max((np.int)(len(X)*ratio),(np.int)(len(Y)*ratio))
+    
+    return X[:lim],Y[:lim],X[lim:],Y[lim:]        
 
 #%%Construct dictionary for CRF
 def sentence_end(word,POS_index):
@@ -338,3 +359,8 @@ def words2tuples(words,feature_used = 0,POS_index = None):
             
     random.shuffle(tuples)
     return tuples,list(symbols),list(tag_set)
+
+
+    
+    
+    
