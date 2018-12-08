@@ -12,6 +12,7 @@ from functools import reduce
 from nltk import pos_tag
 from nltk.tokenize import word_tokenize
 from nltk.stem import PorterStemmer
+from scipy.sparse import lil_matrix
 
 #%%Read the entries from the file and add them to a list
 #with optional filtering
@@ -132,12 +133,12 @@ def append_features(words, features_to_add = None, is_training_set = True,
         #word+features   
         wpf = []
         if feat.word_itself:    wpf.append(word) #word itself
+        if feat.stem:           wpf.append(stemmer.stem(word))
         if feat.POS:            
                                 if is_POS_present_in_words: #POS
                                     wpf.append(words[i][1])
                                 else:
                                     wpf.append(poss[i][1])
-        if feat.stem:           wpf.append(stemmer.stem(word))
         if feat.is_lowercase:   wpf.append('_lower:'+ str(word.islower())) #all letters lowercase
         if feat.is_uppercase:   wpf.append('_upper:'+ str(word.isupper())) #all letters uppercase
         if feat.is_digit:       wpf.append('_digit:'+ str(word.isdigit())) #contains only digits
@@ -244,7 +245,7 @@ def one_hot(X, transl):
     Converts the numbers from the dataset into one-hot encoding. 
     To obtain X and transl, run createDataset(words)
     '''
-    from scipy.sparse import lil_matrix
+
     X_new = lil_matrix((len(X),transl.idx),dtype=np.int8)
     #X_new  = np.zeros([len(X),transl.idx])
     for i in range(X.shape[0]):
@@ -262,6 +263,10 @@ def shuffle_parallel(a, b):
     np.random.shuffle(a)
     np.random.set_state(rng_state)
     np.random.shuffle(b)
+    np.random.set_state(rng_state)
+    indexes = np.arange(len(b))
+    np.random.shuffle(indexes)
+    return indexes
     
 class data_wrap:
     '''Shorthand for writing x_train, y_train etc. every time'''
@@ -360,7 +365,54 @@ def words2tuples(words,feature_used = 0,POS_index = None):
     random.shuffle(tuples)
     return tuples,list(symbols),list(tag_set)
 
-
+#%% Embeddings
+''' 
+def PPMI(corpus):
+    wc = {}
+    gramness = 1
+    for word in corpus:
+        if word in wc:
+            wc[word] += 1
+        else:
+            wc[word]  = 1   
     
+    words = list[corpus.values()]
     
+    M = np.zeros(len(words))
+    return words
+'''    
     
+class embedding_generator:
+    def __init__(self,vector_length=100,path = '../Glove/'):
+        '''
+        Vector length == {50,100,200,300}
+        '''
+        if vector_length not in [50,100,200,300]:
+            return None
+        f = open(path + 'glove.6B.'+str(vector_length)+'d.txt',encoding="utf8")
+        self.n = vector_length
+        self.db = {}
+        for line in f:
+            values = line.split()
+            token = values[0]
+            coeffs = np.asarray(values[1:])
+            self.db[token] = coeffs
+    def embedding(self,word):
+        if word in self.db:
+            return self.db[word]
+        else:
+            return np.zeros((self.n))
+        
+    def insert_embeddings(self,dataset,stems,indexes):
+        new_array = np.zeros((dataset.shape[0],dataset.shape[1]+self.n),np.float32)
+        for i in range(dataset.shape[0]):
+            k=0
+            for j in range(dataset[0].shape[1]):
+                new_array[i,k] = dataset[i,j]
+                k+=1
+            for j in self.embedding(stems[indexes[i]]):
+                new_array[i,k] = j
+                k+=1
+        return new_array
+        
+        

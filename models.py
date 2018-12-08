@@ -5,6 +5,7 @@
 """
 
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import BernoulliNB
 from sklearn.linear_model import LogisticRegression
 from sklearn import svm
 from sklearn.metrics import classification_report
@@ -24,15 +25,16 @@ def gen_rep_flat(data,y_pred,format_dict):
                 data.y_test, y_pred, digits=3,
                 output_dict = format_dict)
 
-#%%Naive Bayes
-def NB(data,verbose=True):
+#%%Naive Bayes for discreete values
+def NB_disc(data,verbose=True):
     '''
     NB(data,verbose)->model,prediction,report(dict). 
     verbose=>prints report
     for data structure see preprocessing.py
     '''
-    gnb = MultinomialNB(alpha=0.001,fit_prior=False)
-    y_pred = gnb.fit(data.x_train, data.y_train).predict(data.x_test)
+
+    nb = MultinomialNB(alpha=0.001,fit_prior=False)
+    y_pred = nb.fit(data.x_train, data.y_train).predict(data.x_test)
     
     #print("Number of mislabeled points out of a total %d points : %d" % (x_test.shape[0],(y_test != y_pred).sum()))
     
@@ -40,7 +42,25 @@ def NB(data,verbose=True):
         print("Naive Bayes results:")
         print(gen_rep(data,y_pred,False))
 
-    return gnb,y_pred,gen_rep(data,y_pred,True)
+    return nb,y_pred,gen_rep(data,y_pred,True)
+#%% Naive Bayes for continuous values
+def NB_cont(data,verbose=True):
+    '''
+    NB(data,verbose)->model,prediction,report(dict). 
+    verbose=>prints report
+    for data structure see preprocessing.py
+    '''
+    
+    nb = BernoulliNB(fit_prior=False)
+    y_pred = nb.fit(data.x_train, data.y_train).predict(data.x_test)
+    
+    #print("Number of mislabeled points out of a total %d points : %d" % (x_test.shape[0],(y_test != y_pred).sum()))
+    
+    if verbose:
+        print("Naive Bayes results:")
+        print(gen_rep(data,y_pred,False))
+
+    return nb,y_pred,gen_rep(data,y_pred,True)
 
 #%%Logisic Regression
 def LR(data,verbose=True):

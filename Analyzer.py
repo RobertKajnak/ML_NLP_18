@@ -3,14 +3,14 @@
 
 @author: Robert Kajnak
 """
-from preprocessing import (read_words, append_features,
+from preprocessing import (read_words, append_features, feature_list, embedding_generator,
                            create_dataset, one_hot, data_wrap, words2dictionary, 
                            shuffle_parallel, split_tr,words2tuples)
-from models import (NB, LR, SVM,HMM_old, HMM, CRF)
+from models import (NB_disc,NB_cont, LR, SVM,HMM_old, HMM, CRF)
 
 
 #%%Handy method for testing the models
-def run_models(words, models, verbose, train=True, test=True):
+def run_models(words, models, verbose, train=True, test=True, embeddings=False):
     '''
     Runs all the models that are specified with the specified word set.
     It runs all preporocessing steps necessary for the models specified
@@ -37,6 +37,9 @@ def run_models(words, models, verbose, train=True, test=True):
     # Preparing data for one-hot encodign -- converts strings into integers
     if any(i in models for i in ['HMM_old','NB','LR','SVM']):
         verbose|2 and print('Initial pre-processing...')
+        if embeddings:
+            stems = [word[0] for word in words]
+            words = [word[1:] for word in words]
         X,Y,transl,labels_num,labels_name = create_dataset(words)
         
     # Algoirthms using non-randomized, one-hot data:HMM
@@ -58,8 +61,11 @@ def run_models(words, models, verbose, train=True, test=True):
     # Algorithms using shuffled, one-hot data:NB,LR,SVM
     if any(i in models for i in ['NB','LR','SVM']):
         verbose|2 and print('Preprocessing data for NB, LR and/or SVM...')
-        shuffle_parallel(X,Y)
+        indexes = shuffle_parallel(X,Y)
         X_onehot_sh = one_hot(X,transl)
+        if embeddings:
+            verbose|2 and print('Loading and generating embeddings...')
+            X_onehot_sh = embeddings.insert_embeddings(X_onehot_sh,stems,indexes)
         x_train_oh_sh,y_train_oh_sh,x_test_oh_sh,y_test_oh_sh = split_tr(X_onehot_sh,Y,0.8)
         data_shuffled = data_wrap(x_train_oh_sh,y_train_oh_sh,x_test_oh_sh,y_test_oh_sh,transl,labels_num,labels_name)
 
@@ -95,15 +101,18 @@ def run_models(words, models, verbose, train=True, test=True):
             _add_to_output(HMM(data_hmm,symbols,tag_set,verbose|1))
             
         if 'NB' in model:
-            verbose|2 and print('Running NB...')
-            _add_to_output( NB(data_shuffled,verbose|1))
+            verbose|2 and print('Running NB ' + ('with ' if embeddings else 'without ') + 'embeddings...')
+            if embeddings:
+                _add_to_output(NB_cont(data_shuffled,verbose|1))
+            else:
+                _add_to_output(NB_disc(data_shuffled,verbose|1))
             
         if 'LR' in model:
-            verbose|2 and print('Running LR...')
+            verbose|2 and print('Running LR ' + ('with ' if embeddings else 'without ') + 'embeddings...')
             _add_to_output(LR(data_shuffled,verbose|1))
             
         if 'SVM' in model:
-            verbose|2 and print('Running SVM...')
+            verbose|2 and print('Running SVM ' + ('with ' if embeddings else 'without ') + 'embeddings...')
             _add_to_output(SVM(data_shuffled,verbose|1))
             
         if  'CRF' in model:
@@ -117,20 +126,51 @@ if __name__ == "__main__":
     print('Loading document...')
     words = read_words('reuters-train.en')
     print('Adding features...')
-    words = append_features(words, is_POS_present_in_words=True, is_training_set=True)
+    
+    #%% Without embeddings:
+    words_and_features = append_features(words, is_POS_present_in_words=True, is_training_set=True)  
     
     #comment any of these to not run it. The necessary pre-processing steps for
     #that model will also be skipped
-    models=[
+    models_to_run=[
             'NB',
             'LR',
             'SVM', 
             'HMM',
             'CRF'
             ]
-    models,predictions,reports = run_models(words, models, verbose = 3, 
+    models,predictions,reports = run_models(words_and_features, models_to_run, verbose = 3, embeddings = False,
                                             train=True, test=True)
     averages = [report['weighted avg']['f1-score'] for report in reports]
+    
+    #%% With Embeddings
+    embeddings = embedding_generator(50)
+    fl = feature_list()
+    fl.last_2_chars = False
+    fl.last_3_chars = False
+    fl.word_itself = False
+    fl.word_shape= False
+    fl.prev_word = False
+    fl.next_word = False
+    models_to_run=[
+            'NB',
+            'LR',
+            'SVM',
+            ]
+    words_and_features = append_features(words, features_to_add = fl,is_POS_present_in_words=True, is_training_set=True) 
+    models2,predictions2,reports2 = run_models(words_and_features, models_to_run, verbose = 3, embeddings = embeddings,
+                                            train=True, test=True)
+    try:
+        models += models2
+        predictions += predictions2
+        reports += reports
+        averages += [report['weighted avg']['f1-score'] for report in reports]
+    except:
+        models = models2
+        predictions = predictions2
+        reports = reports
+        averages = [report['weighted avg']['f1-score'] for report in reports]
+    #%% Statistsics
     
     #History-like feature. Appends the f1-weighted-average to the variable
     #if the variable doesn't exist, an empty list is instantiated
