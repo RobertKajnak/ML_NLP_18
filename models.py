@@ -33,7 +33,7 @@ def NB_disc(data,verbose=True):
     for data structure see preprocessing.py
     '''
 
-    nb = MultinomialNB(alpha=0.001,fit_prior=False)
+    nb = MultinomialNB(alpha=0.001,fit_prior=True)
     y_pred = nb.fit(data.x_train, data.y_train).predict(data.x_test)
     
     #print("Number of mislabeled points out of a total %d points : %d" % (x_test.shape[0],(y_test != y_pred).sum()))
@@ -51,7 +51,7 @@ def NB_cont(data,verbose=True):
     for data structure see preprocessing.py
     '''
     
-    nb = BernoulliNB(fit_prior=False)
+    nb = BernoulliNB(fit_prior=True)
     y_pred = nb.fit(data.x_train, data.y_train).predict(data.x_test)
     
     #print("Number of mislabeled points out of a total %d points : %d" % (x_test.shape[0],(y_test != y_pred).sum()))
@@ -63,7 +63,7 @@ def NB_cont(data,verbose=True):
     return nb,y_pred,gen_rep(data,y_pred,True)
 
 #%%Logisic Regression
-def LR(data,verbose=True):
+def LR(data,verbose=True, C=5):
     '''
     NB(data,verbose)->model,prediction,report(dict). 
     verbose=>prints report
@@ -73,7 +73,9 @@ def LR(data,verbose=True):
     #the performance by 2%, but increases run time by 100 times:
     #random_state=0, solver='lbfgs',multi_class='ovr'
     
-    clf = LogisticRegression(solver='lbfgs', multi_class='auto').fit(data.x_train, data.y_train)
+    clf = LogisticRegression(solver='newton-cg', multi_class='auto', 
+                             #n_jobs=8,
+                             class_weight='balanced', C=C).fit(data.x_train, data.y_train)
     y_pred = clf.predict(data.x_test)
     
     if verbose:
@@ -90,7 +92,7 @@ def SVM(data,verbose=True):
     verbose=>prints report
     for data structure see preprocessing.py
     '''
-    clf = svm.LinearSVC()
+    clf = svm.LinearSVC(fit_intercept = False, C=0.5)
     clf.fit(data.x_train, data.y_train)  
     
     y_pred = clf.predict(data.x_test)
@@ -154,11 +156,10 @@ def CRF(data,verbose=True):
     for data structure see preprocessing.py
     '''
     crf = sklearn_crfsuite.CRF(
-        algorithm='lbfgs',
-        c1=0.1,
-        c2=0.1,
+        algorithm='ap',
         max_iterations=100,
-        all_possible_transitions=False
+        all_possible_transitions=True,
+        all_possible_states = False
     )
     crf.fit(data.x_train, data.y_train)    
     y_pred = crf.predict(data.x_test)

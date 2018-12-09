@@ -56,6 +56,7 @@ def run_models(words, models, verbose, train=True, test=True, embeddings=False):
         _,y_train,_,y_test = split_tr([],sentences_hmm,0.8)
         x_test = [[tup[0] for tup in sentence] for sentence in y_test]
         y_test = [[tup[1] for tup in sentence] for sentence in y_test]
+        #shuffle_parallel(x_test,y_test)
         data_hmm = data_wrap(None,y_train,x_test,y_test)
     
     # Algorithms using shuffled, one-hot data:NB,LR,SVM
@@ -72,8 +73,8 @@ def run_models(words, models, verbose, train=True, test=True, embeddings=False):
     #Ordered, using sentences (list of list of dict): CRF
     if 'CRF' in models:
         verbose|2 and print('Preprocessing data for CRF...')
-        tokens_dict,labels_dict = words2dictionary(words)#,['token','POS','segment'])
-        
+        tokens_dict,labels_dict = words2dictionary(words)
+        shuffle_parallel(tokens_dict,labels_dict)
         tokens_train,labels_train,tokens_test,labels_test = split_tr(tokens_dict,labels_dict,0.8)
         data_dictionary = data_wrap(tokens_train,labels_train,tokens_test,labels_test)
     
@@ -109,7 +110,7 @@ def run_models(words, models, verbose, train=True, test=True, embeddings=False):
             
         if 'LR' in model:
             verbose|2 and print('Running LR ' + ('with ' if embeddings else 'without ') + 'embeddings...')
-            _add_to_output(LR(data_shuffled,verbose|1))
+            _add_to_output(LR(data_shuffled,verbose|1,C=(0.1 if embeddings else 5)))
             
         if 'SVM' in model:
             verbose|2 and print('Running SVM ' + ('with ' if embeddings else 'without ') + 'embeddings...')
@@ -123,12 +124,13 @@ def run_models(words, models, verbose, train=True, test=True, embeddings=False):
             
 #%% Main
 if __name__ == "__main__":
+    #%% Read file
     print('Loading document...')
     words = read_words('reuters-train.en')
     print('Adding features...')
     
     #%% Without embeddings:
-    words_and_features = append_features(words, is_POS_present_in_words=True, is_training_set=True)  
+    words_and_features = append_features(words, is_POS_present=True, is_training_set=True)  
     
     #comment any of these to not run it. The necessary pre-processing steps for
     #that model will also be skipped
@@ -140,11 +142,13 @@ if __name__ == "__main__":
             'CRF'
             ]
     models,predictions,reports = run_models(words_and_features, models_to_run, verbose = 3, embeddings = False,
-                                            train=True, test=True)
+                                             train=True, test=True)
     averages = [report['weighted avg']['f1-score'] for report in reports]
     
+    embeddingless_ran = True
     #%% With Embeddings
-    embeddings = embedding_generator(50)
+    print('Reading embeddings...')
+    embeddings = embedding_generator(200)
     fl = feature_list()
     fl.last_2_chars = False
     fl.last_3_chars = False
@@ -154,21 +158,27 @@ if __name__ == "__main__":
     fl.next_word = False
     models_to_run=[
             'NB',
-            'LR',
+            'LR', #this takes a very long time (30 mins+)
             'SVM',
             ]
-    words_and_features = append_features(words, features_to_add = fl,is_POS_present_in_words=True, is_training_set=True) 
+    words_and_features = append_features(words, features_to_add = fl,is_POS_present=False, is_training_set=True) 
     models2,predictions2,reports2 = run_models(words_and_features, models_to_run, verbose = 3, embeddings = embeddings,
                                             train=True, test=True)
     try:
-        models += models2
-        predictions += predictions2
-        reports += reports
-        averages += [report['weighted avg']['f1-score'] for report in reports]
+        if embeddingless_ran:
+            models += models2
+            predictions += predictions2
+            reports += reports
+            averages += [report['weighted avg']['f1-score'] for report in reports]
+        else:
+            models.append(models2)
+            predictions.append(predictions2)
+            reports.append(reports)
+            averages.append([report['weighted avg']['f1-score'] for report in reports])
     except:
         models = models2
         predictions = predictions2
-        reports = reports
+        reports = reports2
         averages = [report['weighted avg']['f1-score'] for report in reports]
     #%% Statistsics
     

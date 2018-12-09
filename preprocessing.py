@@ -102,7 +102,7 @@ class feature_list:
     next_POS = True
 
 def append_features(words, features_to_add = None, is_training_set = True, 
-                    is_POS_present_in_words=True):
+                    is_POS_present=False):
     '''
     Appends features to the words.
     Keyword arguments:
@@ -120,7 +120,7 @@ def append_features(words, features_to_add = None, is_training_set = True,
         feat = feature_list()
     else:
         feat = features_to_add
-    if feat.POS and not is_POS_present_in_words:
+    if feat.POS and not is_POS_present:
         poss = pos_tag([word[0] for word in words])
         
     stemmer = PorterStemmer()
@@ -135,7 +135,7 @@ def append_features(words, features_to_add = None, is_training_set = True,
         if feat.word_itself:    wpf.append(word) #word itself
         if feat.stem:           wpf.append(stemmer.stem(word))
         if feat.POS:            
-                                if is_POS_present_in_words: #POS
+                                if is_POS_present: #POS
                                     wpf.append(words[i][1])
                                 else:
                                     wpf.append(poss[i][1])
@@ -388,7 +388,7 @@ class embedding_generator:
         Vector length == {50,100,200,300}
         '''
         if vector_length not in [50,100,200,300]:
-            return None
+            raise ValueError('Invalid number of features requested: '+ str(vector_length) +'. Must be 50,100,200 or 300')
         f = open(path + 'glove.6B.'+str(vector_length)+'d.txt',encoding="utf8")
         self.n = vector_length
         self.db = {}
