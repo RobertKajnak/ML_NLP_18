@@ -6,7 +6,7 @@
 from preprocessing import (read_words, append_features, feature_list, embedding_generator,
                            create_dataset, one_hot, data_wrap, words2dictionary, 
                            shuffle_parallel, split_tr,words2tuples)
-from models import (NB_disc,NB_cont, LR, SVM,HMM_old, HMM, CRF)
+from models import (NB_disc,NB_cont, LR, SVM, HMM, CRF)
 
 
 #%%Handy method for testing the models
@@ -35,20 +35,13 @@ def run_models(words, models, verbose, train=True, test=True, embeddings=False):
                 3: print both
     '''
     # Preparing data for one-hot encodign -- converts strings into integers
-    if any(i in models for i in ['HMM_old','NB','LR','SVM']):
+    if any(i in models for i in ['NB','LR','SVM']):
         verbose|2 and print('Initial pre-processing...')
         if embeddings:
             stems = [word[0] for word in words]
             words = [word[1:] for word in words]
         X,Y,transl,labels_num,labels_name = create_dataset(words)
-        
-    # Algoirthms using non-randomized, one-hot data:HMM
-    if 'HMM_old' in models:
-        verbose|2 and print('Preprocessing data for HMM, old version...')
-        X_onehot_ord = one_hot(X,transl)
-        x_train_oh,y_train_oh,x_test_oh,y_test_oh = split_tr(X_onehot_ord,Y,0.8)
-        data_ordered_oh = data_wrap(x_train_oh,y_train_oh,x_test_oh,y_test_oh,transl,labels_num,labels_name)
-    
+
     #Algorithm uses sentences (list of list of tuples): HMM
     if 'HMM' in models:
         verbose|2 and print('Preprocessing data for HMM...')
@@ -92,11 +85,7 @@ def run_models(words, models, verbose, train=True, test=True, embeddings=False):
         
     #Run each of the models from the paramters, while KEEPING THE ORDER they were called in
     #and append it to the return lists
-    for model in models:
-        if 'HMM_old' in model:
-            verbose|2 and print('Running HMM from hmmlearn package...')
-            _add_to_output(HMM_old(data_ordered_oh,verbose|1))
-            
+    for model in models:          
         if 'HMM' in model:
             verbose|2 and print('Running HMM from nltk...')
             _add_to_output(HMM(data_hmm,symbols,tag_set,verbose|1))

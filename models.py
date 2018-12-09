@@ -103,25 +103,6 @@ def SVM(data,verbose=True):
     return clf,y_pred,gen_rep(data,y_pred,True)
 
 #%% HMM
-def HMM_old(data,verbose=True):
-    '''Deprecated - will be removed in next version'''
-    hm = hmm_old.GaussianHMM(n_components=2, n_iter=100)
-
-        
-    '''temp = transl.idx;
-    transl.idx=10
-    hm.fit(oneHot(y_train,transl))
-    transl.idx=temp'''
-    hm.fit(data.y_train.reshape(-1,1))
-    #y_pred = hm.score(y_test.reshape(-1,1))
-    y_pred = hm.predict(data.y_test.reshape(-1,1))
-
-    if verbose:
-        print("HMM results:")
-        print(print(gen_rep,y_pred,False))
-        
-    return hm,y_pred,print(gen_rep,y_pred,True)
-
 def HMM(data,symbols,tag_set,verbose=True):
     '''
     NB(data,symbols,tag_set,verbose)->model,prediction,report(dict). 
